@@ -1,0 +1,13 @@
+.hydra
+.gitignore
+logs/
+project/project/
+project/target/
+random.txt
+replay_pid11076.log
+replay_pid11484.log
+replay_pid7720.log
+target/
+
+/.idea/
+!/.gitignore
