@@ -9,6 +9,9 @@ sealed trait Reading {
   def id: Int
 }
 
-case class ValidReading(id: Int, value: Double = Random.nextDouble()) extends Reading
+case class ValidReading(id: Int, value: Double = Random.nextDouble()) extends Reading {
+
+  override def toString: String = s"[id=$id,value=$value]"
+}
 
 case class InvalidReading(id: Int) extends Reading

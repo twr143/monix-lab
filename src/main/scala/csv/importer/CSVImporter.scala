@@ -5,7 +5,7 @@ import java.util.zip.GZIPInputStream
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import csv.model.{InvalidReading, Reading, ValidReading}
-import csv.repository.ReadingRepository
+//import csv.repository.ReadingRepository
 import monix.eval.Task
 import monix.execution.CancelableFuture
 import monix.execution.Scheduler.Implicits.global
@@ -14,7 +14,7 @@ import monix.reactive.{Consumer, Observable}
 /**
   * Created by Ilya Volynin on 11.03.2019 at 8:03.
   */
-class CsvImporter(config: Config, readingRepository: ReadingRepository) extends LazyLogging {
+class CsvImporter(config: Config) extends LazyLogging {
   import CsvImporter._
 
   private val importDirectory = Paths.get(config.getString("importer.import-directory")).toFile
@@ -41,7 +41,7 @@ class CsvImporter(config: Config, readingRepository: ReadingRepository) extends 
   }
 
   val parseFile: Transformer[File, Reading] = _.concatMap { file =>
-    Observable.fromLinesReader(new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(file)))))
+    Observable.fromLinesReader(new BufferedReader(new InputStreamReader(new FileInputStream(file))))
       .drop(linesToSkip)
       .mapParallelUnordered(nonIOParallelism)(parseLine)
   }
@@ -49,13 +49,17 @@ class CsvImporter(config: Config, readingRepository: ReadingRepository) extends 
   val computeAverage: Transformer[Reading, ValidReading] = _.bufferTumbling(2).mapParallelUnordered(nonIOParallelism) { readings =>
     Task {
       val validReadings = readings.collect { case r: ValidReading => r }
+      println(s"valid readings size ${validReadings.size}, v.r.:${validReadings} r.s. ${readings.size}")
       val average = if (validReadings.nonEmpty) validReadings.map(_.value).sum / validReadings.size else -1
       ValidReading(readings.head.id, average)
     }
   }
 
   val storeReadings: Consumer[ValidReading, Unit] =
-    Consumer.foreachParallel(concurrentWrites)(readingRepository.save)
+    Consumer.foreachParallel(concurrentWrites)(vr => {
+      println(s"v r: $vr")
+      ()
+    })
 
   val processSingleFile: Transformer[File, ValidReading] = parseFile.andThen(computeAverage)
 
@@ -92,8 +96,8 @@ object CsvImporter {
 
   def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()
-    val readingRepository = new ReadingRepository
-    new CsvImporter(config, readingRepository).importFromFiles
-      .onComplete(_ => readingRepository.shutdown())
+    //    val readingRepository = new ReadingRepository
+    new CsvImporter(config /*, readingRepository*/).importFromFiles
+      .onComplete(_ => () /*readingRepository.shutdown()*/)
   }
 }

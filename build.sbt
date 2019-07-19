@@ -16,6 +16,7 @@ libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.1",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
   "io.monix" %% "monix-nio" % "0.0.3",
-  "com.datastax.cassandra" % "cassandra-driver-core" % "3.2.0"
+  "com.google.guava" % "guava" % "27.1-jre"
+//  "com.datastax.cassandra" % "cassandra-driver-core" % "3.2.0"
   )
 

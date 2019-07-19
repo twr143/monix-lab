@@ -1,5 +1,5 @@
 package csv.repository
-import com.datastax.driver.core.Cluster
+//import com.datastax.driver.core.Cluster
 import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
 import csv.model.ValidReading
 import monix.eval.Task
@@ -9,7 +9,7 @@ import scala.concurrent.Promise
 /**
   * Created by Ilya Volynin on 11.03.2019 at 8:01.
   */
-class ReadingRepository {
+/*class ReadingRepository {
   private val session = Cluster.builder.addContactPoint("127.0.0.1").build.connect
 
   private val preparedStatement = session.prepare("insert into akka_streams.readings (id, value) values (?, ?)")
@@ -35,4 +35,4 @@ class ReadingRepository {
 
     promise.future
   }
-}
+} */
