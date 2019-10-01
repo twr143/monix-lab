@@ -1,15 +1,20 @@
 package csv.importer
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
 import java.nio.file.Paths
+import java.util.concurrent.Executors
 import java.util.zip.GZIPInputStream
+
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import csv.model.{InvalidReading, Reading, ValidReading}
+
+import scala.concurrent.{Await, ExecutionContext}
 //import csv.repository.ReadingRepository
 import monix.eval.Task
 import monix.execution.CancelableFuture
 import monix.execution.Scheduler.Implicits.global
 import monix.reactive.{Consumer, Observable}
+import concurrent.duration._
 
 /**
   * Created by Ilya Volynin on 11.03.2019 at 8:03.
@@ -32,6 +37,7 @@ class CsvImporter(config: Config) extends LazyLogging {
     val id = fields(0).toInt
     try {
       val value = fields(1).toDouble
+            logger.info(s" parse thread id: ${Thread.currentThread().getId}")
       ValidReading(id, value)
     } catch {
       case t: Throwable =>
@@ -43,21 +49,21 @@ class CsvImporter(config: Config) extends LazyLogging {
   val parseFile: Transformer[File, Reading] = _.concatMap { file =>
     Observable.fromLinesReader(new BufferedReader(new InputStreamReader(new FileInputStream(file))))
       .drop(linesToSkip)
-      .mapParallelUnordered(nonIOParallelism)(parseLine)
+            .mapParallelUnordered(nonIOParallelism)(parseLine)
+//      .mapEval(parseLine)
   }
 
-  val computeAverage: Transformer[Reading, ValidReading] = _.bufferTumbling(2).mapParallelUnordered(nonIOParallelism) { readings =>
+  val computeAverage: Transformer[Reading, ValidReading] = _.bufferTumbling(2).mapTask { readings =>
     Task {
       val validReadings = readings.collect { case r: ValidReading => r }
-      println(s"valid readings size ${validReadings.size}, v.r.:${validReadings} r.s. ${readings.size}")
       val average = if (validReadings.nonEmpty) validReadings.map(_.value).sum / validReadings.size else -1
       ValidReading(readings.head.id, average)
     }
   }
 
   val storeReadings: Consumer[ValidReading, Unit] =
-    Consumer.foreachParallel(concurrentWrites)(vr => {
-      println(s"v r: $vr")
+    Consumer.foreachTask(vr => Task{
+//      logger.info(s"consumer v r: $vr thread id: ${Thread.currentThread().getId}")
       ()
     })
 
@@ -97,7 +103,17 @@ object CsvImporter {
   def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()
     //    val readingRepository = new ReadingRepository
-    new CsvImporter(config /*, readingRepository*/).importFromFiles
-      .onComplete(_ => () /*readingRepository.shutdown()*/)
+
+    val completed = new CsvImporter(config /*, readingRepository*/).importFromFiles.andThen{case _  => println(s"completed in main")}
+    //.onComplete(_ => println(s"completed in main") /*readingRepository.shutdown()*/)
+    Await.result(completed, 5.seconds)
+
+    //foreachParallel(concurrentWrites) doen't have any effect
+    // the real effect has scheduler threadpool settings:
+    //
+    //-Dscala.concurrent.context.numThreads=4
+    // -Dscala.concurrent.context.maxThreads=8
+
+    // in effect are the following setings max(numThreads,concurrentWrites/Reads)
   }
 }
