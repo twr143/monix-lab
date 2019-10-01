@@ -49,8 +49,8 @@ class CsvImporter(config: Config) extends LazyLogging {
   val parseFile: Transformer[File, Reading] = _.concatMap { file =>
     Observable.fromLinesReader(new BufferedReader(new InputStreamReader(new FileInputStream(file))))
       .drop(linesToSkip)
-            .mapParallelUnordered(nonIOParallelism)(parseLine)
-//      .mapEval(parseLine)
+//            .mapParallelUnordered(nonIOParallelism)(parseLine)
+      .mapEval(parseLine)
   }
 
   val computeAverage: Transformer[Reading, ValidReading] = _.bufferTumbling(2).mapTask { readings =>
