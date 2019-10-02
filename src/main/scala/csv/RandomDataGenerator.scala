@@ -42,15 +42,10 @@ object RandomDataGenerator extends App with LazyLogging {
             s"${reading.id};$value\n"
           }.reduce(_ + _).getBytes
         }.consumeWith(writeAsync(Paths.get(s"data/$fileName.csv")))
-      }.completedL.runAsync.andThen { case x =>
+      }.completedL.runAsync.andThen { case _ =>
       val elapsedTime = (System.currentTimeMillis() - startTime) / 1000.0
       logger.info(s"generation finished in ${elapsedTime}s")
     }
-    //      .doOnFinish { _ =>
-    //              val elapsedTime = (System.currentTimeMillis() - startTime) / 1000.0
-    //              logger.info(s"Import finished in ${elapsedTime}s")
-    //              Task.unit
-    //            }
   }
 
   val res = for {
